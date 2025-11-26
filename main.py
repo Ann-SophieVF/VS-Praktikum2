@@ -1,28 +1,52 @@
 import asyncio
-from peet import Peer
+import json
+from asyncio import tasks
+from dataclasses import asdict
+from asyncio_mqtt import Client
 
+import messages
+from client.peer import Peer
+from utils.buildTopic import buildTopic
 
+BROKER_IP = "localhost"
+BROKER_PORT = 1883
+
+start_values ={
+    #machen wir das als feldchen?
+}
+# Server
 async def main():
     # Beispiel-Startwerte (wie in eurer Aufgabe)
     start_values = [108, 76, 12, 60, 36]
-    peers = [Peer(f"P{i+1}", val) for i, val in enumerate(start_values)]
+    peer_count = 5
+    #peers = [Peer(f"P{i+1}", val) for i, val in enumerate(start_values)]
 
-    # Ring aufbauen
-    for i, p in enumerate(peers):
-        prev_peer = peers[(i - 1) % len(peers)]
-        next_peer = peers[(i + 1) % len(peers)]
-        p.connect([prev_peer, next_peer])
+async def master():
+    async with Client(BROKER_IP, BROKER_PORT) as client:
+        for pid, m0 in start_values.items():
+            msg = messages.Message(
+                type=messages.MessageType.SET_M.value,
+                value=str(m0)
+            )
+        print("Master started to send M to clients")
 
-    # Alle Peers als Tasks starten
-    tasks = [asyncio.create_task(p.run()) for p in peers]
+        payload = json.dumps(asdict(msg)).encode()
+        print("encoded")
+        await client.publish(buildTopic(pid), payload)
+        print("published")
 
-    # Laufzeit begrenzen (z. B. 5 s)
+    # Laufzeit begrenzen (aktuell 5 s)
     await asyncio.sleep(5)
 #hallöchen
     # Ergebnisse abfragen
-    for p in peers:
-        print(f"Ergebnis {p.pid}: M = {p.M}")
+    msg = messages.Message(
+        type=messages.MessageType.GET_M.value,
+        value=""
+    )
 
+    payload = json.dumps(asdict(msg)).encode()
+
+    await client.subscribe(buildTopic(MASTER_PID))
     # Tasks abbrechen
     for t in tasks:
         t.cancel()
