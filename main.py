@@ -18,7 +18,7 @@ async def main():
 
     # Laufzeit begrenzen (z. B. 5 s)
     await asyncio.sleep(5)
-
+#hallöchen
     # Ergebnisse abfragen
     for p in peers:
         print(f"Ergebnis {p.pid}: M = {p.M}")
