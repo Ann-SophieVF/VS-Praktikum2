@@ -16,7 +16,7 @@ start_values ={
 }
 # Server
 async def main():
-    # Beispiel-Startwerte (wie in eurer Aufgabe)
+    # Startwerte
     start_values = [108, 76, 12, 60, 36]
     peer_count = 5
     #peers = [Peer(f"P{i+1}", val) for i, val in enumerate(start_values)]
@@ -37,7 +37,7 @@ async def master():
 
     # Laufzeit begrenzen (aktuell 5 s)
     await asyncio.sleep(5)
-#hallöchen
+
     # Ergebnisse abfragen
     msg = messages.Message(
         type=messages.MessageType.GET_M.value,
@@ -52,4 +52,4 @@ async def master():
         t.cancel()
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    asyncio.run(master())
