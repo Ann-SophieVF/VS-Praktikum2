@@ -11,7 +11,7 @@ from utils.buildTopic import buildTopic, MASTER_PID
 BROKER_IP = "localhost"
 BROKER_PORT = 1883
 
-start_values ={
+START_VALUES ={
     1: 108,
     2: 76,
     3: 12,
@@ -20,10 +20,20 @@ start_values ={
 }
 # Server
 
+#ABlauf
+# 1. Verbinde mit Broker
+# 2. sende allen clients ihre nachbartopics
+# 3. sende jedem client sein m
+# 5. warte Zeit t
+# 6. schicke allen ein Get_M
+# 7. gebe m aus oder wähl das größte oder so
+
 async def master():
     async with Client(BROKER_IP, BROKER_PORT) as client:
+
+        await client.subscribe(buildTopic(MASTER_PID))
         print("Master verbundn")
-        pids = list(start_values.keys())
+        pids = list(START_VALUES.keys())
         n = len(pids)
 
         for i, pid in enumerate(pids):
@@ -43,48 +53,48 @@ async def master():
 
             print("Master started to send M to clients")
 
-            for pid, m0 in START_VALUES.items():
-                msg = messages.Message(
-                    type=messages.MessageType.SET_M.value,
-                    value=str(m0),
-                )
-                payload = json.dumps(asdict(msg)).encode()
-                print("encoded")
-                await client.publish(buildTopic(pid), payload)
-                print("published")
+            #for pid, m0 in START_VALUES.items():
+            msg = messages.Message(
+                type=messages.MessageType.SET_M.value,
+                value=str(START_VALUES[pid]),
+            )
+            payload = json.dumps(asdict(msg)).encode()
+            print("encoded")
+            await client.publish(buildTopic(pid), payload)
+            print("published")
 
-    # Laufzeit begrenzen (aktuell 5 s)
-    await asyncio.sleep(5)
+        # Laufzeit begrenzen (aktuell 5 s)
+        await asyncio.sleep(5)
 
-    # Ergebnisse abfragen
-    msg = messages.Message(
-        type=messages.MessageType.GET_M.value,
-        value=""
-    )
+        # Ergebnisse abfragen
+        msg = messages.Message(
+            type=messages.MessageType.GET_M.value,
+            value=""
+        )
 
-    payload_clients = json.dumps(asdict(msg)).encode()
+        payload_clients = json.dumps(asdict(msg)).encode()
 
-    for pid in start_values.keys():
-        await client.publish(buildTopic(pid), payload_clients)
-        print("sende message an client {pid}")
+        for pid in START_VALUES.keys():
+            await client.publish(buildTopic(pid), payload_clients)
+            print("sende message an client {pid}")
 
-    await client.subscribe(buildTopic(MASTER_PID))
 
-    results: list[int] = []
-    async with client.messages() as messages_stream:
-        while len(results) < len(start_values):
-            message = await messages_stream.__anext__()
-            data = json.loads(message.payload.decode())
-            msg = messages.Message(**data)
 
-            if msg.type == messages.MessageType.GET_M.value:
-                m_val = int(msg.value) #cast damit zahl korrekt ausgegeben wird
-                results.append(m_val)
-            print(f"[MASTER] Antwort erhalten: {m_val}")
+        results: list[int] = []
+        async with client.messages() as messages_stream:
+            while len(results) < len(START_VALUES):
+                message = await messages_stream.__anext__()
+                data = json.loads(message.payload.decode())
+                msg = messages.Message(**data)
 
-    print("\n[MASTER] Endergebnisse:")
-    for i, m_val in enumerate(results, start=1):
-        print(f"Antwort {i}: M = {m_val}")
+                if msg.type == messages.MessageType.GET_M.value:
+                    m_val = int(msg.value) #cast damit zahl korrekt ausgegeben wird
+                    results.append(m_val)
+                print(f"[MASTER] Antwort erhalten: {m_val}")
+
+        print("\n[MASTER] Endergebnisse:")
+        for i, m_val in enumerate(results, start=1):
+            print(f"Antwort {i}: M = {m_val}")
 
 if __name__ == "__main__":
     asyncio.run(master())

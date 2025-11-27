@@ -28,7 +28,7 @@ async def main_short():
     peer = Peer(
         broker_ip="127.0.0.1",
         pid=1,
-        broker_port=5000,
+        broker_port=1883,
     )
 
     await peer.start()
@@ -36,14 +36,22 @@ async def main_short():
     peer = Peer(
         broker_ip="127.0.0.1",
         pid=2,
-        broker_port=5000,
+        broker_port=1883,
+    )
+
+    await peer.start()
+
+    peer = Peer(
+        broker_ip="127.0.0.1",
+        pid=3,
+        broker_port=1883,
     )
 
     await peer.start()
 
 
 def main():
-    asyncio.run(async_main())
+    asyncio.run(main_short())
 
 
 if __name__ == "__main__":
