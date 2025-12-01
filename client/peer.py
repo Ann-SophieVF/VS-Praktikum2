@@ -1,8 +1,8 @@
 import asyncio
 import random
 import json
-import asyncio
-from asyncio_mqtt import Client
+import aiomqtt
+from aiomqtt import Client
 from dataclasses import dataclass, asdict
 
 from utils.buildTopic import buildTopic, MASTER_PID
@@ -32,29 +32,36 @@ class Peer:
             await asyncio.gather(receiver, worker)
 
     async def handle_msg(self):
-        async with self.client.messages() as messageList:
-            async for message in messageList:
-                data = json.loads(message)
-                msg = messageList.Message(**data)
-
+        async for message in self.client.messages:
+            try:
+                data = json.loads(message.payload.decode())
+                msg = messages.Message( ** data)
                 await self.exec_msg(msg)
+            except Exception as e:
+                print(f"[{self.pid}] Fehler beim Verarbeiten der Nachricht: {e}")
+                print(f"[{self.pid}] payload war: {message.payload!r}")
+
+
+
 
     async def exec_msg(self, msg: messages.Message):
         match msg.type:
-            case messages.MessageType.SET_NEIGHBOUR_LEFT:
+            case messages.MessageType.SET_NEIGHBOUR_LEFT.value:
                 self.neighbour_topics["left"] = buildTopic(int(msg.value))
-            case messages.MessageType.SET_NEIGHBOUR_RIGHT:
+            case messages.MessageType.SET_NEIGHBOUR_RIGHT.value:
                 self.neighbour_topics["right"] = buildTopic(int(msg.value))
-            case messages.MessageType.SET_M:
-                self.M = msg.value
+            case messages.MessageType.SET_M.value:
+                self.M = int(msg.value)
                 self.m_ready.set()
-            case messages.MessageType.SET_Y:
-                await self.y_queue.put(msg.value)
-            case messages.MessageType.GET_M:
+            case messages.MessageType.SET_Y.value:
+                await self.y_queue.put(int(msg.value))
+            case messages.MessageType.GET_M.value:
                 msg = messages.Message(
                     type=messages.MessageType.GET_M.value, value=str(self.M))
                 payload = json.dumps(asdict(msg)).encode()
                 await self.client.publish(buildTopic(MASTER_PID), payload)
+            case _ :
+                print("komische messagi reingekommeni, ikannixi verarbeiten")
 
 
     async def send(self, value: int):

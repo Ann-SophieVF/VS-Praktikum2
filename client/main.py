@@ -1,4 +1,7 @@
 import asyncio
+import sys
+
+import aiomqtt
 import argparse
 
 from peer import Peer   # falls die Klasse in derselben Datei ist, diesen Import weglassen
@@ -55,4 +58,9 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    if sys.platform == "win32":
+        from asyncio import set_event_loop_policy, WindowsSelectorEventLoopPolicy
+
+        asyncio.set_event_loop_policy(WindowsSelectorEventLoopPolicy())
+
+    asyncio.run(main())

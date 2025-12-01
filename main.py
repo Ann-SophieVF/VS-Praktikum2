@@ -1,8 +1,9 @@
 import asyncio
 import json
+import sys
 from asyncio import tasks
 from dataclasses import asdict
-from asyncio_mqtt import Client
+from aiomqtt import Client
 
 import messages
 from client.peer import Peer
@@ -81,20 +82,27 @@ async def master():
 
 
         results: list[int] = []
-        async with client.messages() as messages_stream:
-            while len(results) < len(START_VALUES):
-                message = await messages_stream.__anext__()
-                data = json.loads(message.payload.decode())
-                msg = messages.Message(**data)
+        async for message in client.messages:
+            data = json.loads(message.payload.decode())
+            msg = messages.Message(**data)
 
-                if msg.type == messages.MessageType.GET_M.value:
-                    m_val = int(msg.value) #cast damit zahl korrekt ausgegeben wird
-                    results.append(m_val)
+            if msg.type == messages.MessageType.GET_M.value:
+                m_val = int(msg.value)
+                results.append(m_val)
                 print(f"[MASTER] Antwort erhalten: {m_val}")
+
+            # Wenn wir von allen Peers eine Antwort haben → raus aus der Schleife
+            if len(results) >= len(START_VALUES):
+                break
 
         print("\n[MASTER] Endergebnisse:")
         for i, m_val in enumerate(results, start=1):
             print(f"Antwort {i}: M = {m_val}")
 
 if __name__ == "__main__":
+    if sys.platform == "win32":
+        from asyncio import set_event_loop_policy, WindowsSelectorEventLoopPolicy
+
+        asyncio.set_event_loop_policy(WindowsSelectorEventLoopPolicy())
+
     asyncio.run(master())
