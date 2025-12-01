@@ -45,10 +45,12 @@ async def master():
                 type=messages.MessageType.SET_NEIGHBOUR_LEFT.value,
                 value=str(left),
             )
+            print(f"  Sende LEFT-Info an {buildTopic(pid)}: {msg_left}")
             msg_right = messages.Message(
                 type=messages.MessageType.SET_NEIGHBOUR_RIGHT.value,
                 value=str(right),
             )
+            print(f"  Sende RIGHT-Info an {buildTopic(pid)}: {msg_right}")
             await client.publish(buildTopic(pid), json.dumps(asdict(msg_left)).encode())
             await client.publish(buildTopic(pid), json.dumps(asdict(msg_right)).encode())
 

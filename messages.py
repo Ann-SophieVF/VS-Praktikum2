@@ -15,9 +15,8 @@ from enum import Enum
 
 @dataclass
 class Message:
-    def __init__(self, type: str, value: str):
-        self.type = type      # z.B. "update"
-        self.value = value            # z.B. deine Zahl M
+    type: str
+    value: str
 
 class MessageType(Enum):
     SET_M = "SET_M"

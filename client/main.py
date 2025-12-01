@@ -27,31 +27,19 @@ async def async_main():
     await peer.start()
 
 async def main_short():
+    peers = []
 
-    peer = Peer(
-        broker_ip="127.0.0.1",
-        pid=1,
-        broker_port=1883,
-    )
+    for pid in [1, 2, 3, 4, 5]:
+        peer = Peer(
+            broker_ip="127.0.0.1",
+            pid=pid,
+            broker_port=1883,
+        )
+        task = asyncio.create_task(peer.start())
+        peers.append(task)
 
-    await peer.start()
-
-    peer = Peer(
-        broker_ip="127.0.0.1",
-        pid=2,
-        broker_port=1883,
-    )
-
-    await peer.start()
-
-    peer = Peer(
-        broker_ip="127.0.0.1",
-        pid=3,
-        broker_port=1883,
-    )
-
-    await peer.start()
-
+    # WICHTIG: jetzt laufen alle Peers parallel
+    await asyncio.gather(*peers)
 
 def main():
     asyncio.run(main_short())
