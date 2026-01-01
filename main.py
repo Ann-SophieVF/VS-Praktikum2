@@ -1,41 +1,63 @@
 import asyncio
 import json
 import sys
-from asyncio import tasks
 from dataclasses import asdict
 from aiomqtt import Client
 
 import messages
-from client.peer import Peer
-from utils.buildTopic import buildTopic, MASTER_PID
+from utils.buildTopic import buildClientTopic, MASTER_PID, buildNodeTopic
 
 BROKER_IP = "localhost"
 BROKER_PORT = 1883
 
-START_VALUES ={
+START_VALUES = {
     1: 108,
     2: 76,
     3: 12,
     4: 60,
     5: 36
 }
-# Server
 
-#ABlauf
-# 1. Verbinde mit Broker
-# 2. sende allen clients ihre nachbartopics
-# 3. sende jedem client sein m
-# 5. warte Zeit t
-# 6. schicke allen ein Get_M
-# 7. gebe m aus oder wähl das größte oder so
+
+def distribute_nodes(total_nodes: int, total_clients: int) -> list[int]:
+    base = total_nodes // total_clients
+    rest = total_nodes % total_clients
+    return [base + 1 if i < rest else base for i in range(total_clients)]
+
+
+def chunk_pids(pids: list[int], client_quantity: int) -> list[list[int]]:
+    counts = distribute_nodes(len(pids), client_quantity)
+    chunks: list[list[int]] = []
+    start = 0
+    for c in counts:
+        chunks.append(pids[start:start + c])
+        start += c
+    return chunks
+
 
 async def master():
     async with Client(BROKER_IP, BROKER_PORT) as client:
+        await client.subscribe(buildNodeTopic(MASTER_PID))
+        print("[MASTER] verbunden")
 
-        await client.subscribe(buildTopic(MASTER_PID))
-        print("Master verbundn")
         pids = list(START_VALUES.keys())
         n = len(pids)
+
+        client_quantity = 5
+
+        pid_chunks = chunk_pids(pids, client_quantity)
+
+        for client_id, pid_list in enumerate(pid_chunks, start=1):
+            msg = messages.Message(
+                type=messages.MessageType.SET_NODE_PIDS.value,
+                value=json.dumps(pid_list)
+            )
+            await client.publish(buildClientTopic(client_id), json.dumps(asdict(msg)).encode())
+            print(f"[MASTER] sende PIDs {pid_list} an Client {client_id}")
+
+
+        await asyncio.sleep(1)
+
 
         for i, pid in enumerate(pids):
             left = pids[(i - 1) % n]
@@ -45,43 +67,31 @@ async def master():
                 type=messages.MessageType.SET_NEIGHBOUR_LEFT.value,
                 value=str(left),
             )
-            print(f"  Sende LEFT-Info an {buildTopic(pid)}: {msg_left}")
             msg_right = messages.Message(
                 type=messages.MessageType.SET_NEIGHBOUR_RIGHT.value,
                 value=str(right),
             )
-            print(f"  Sende RIGHT-Info an {buildTopic(pid)}: {msg_right}")
-            await client.publish(buildTopic(pid), json.dumps(asdict(msg_left)).encode())
-            await client.publish(buildTopic(pid), json.dumps(asdict(msg_right)).encode())
+            await client.publish(buildNodeTopic(pid), json.dumps(asdict(msg_left)).encode())
+            await client.publish(buildNodeTopic(pid), json.dumps(asdict(msg_right)).encode())
 
-            print("Master started to send M to clients")
-
-            #for pid, m0 in START_VALUES.items():
-            msg = messages.Message(
+            msg_m = messages.Message(
                 type=messages.MessageType.SET_M.value,
                 value=str(START_VALUES[pid]),
             )
-            payload = json.dumps(asdict(msg)).encode()
-            print("encoded")
-            await client.publish(buildTopic(pid), payload)
-            print("published")
+            await client.publish(buildNodeTopic(pid), json.dumps(asdict(msg_m)).encode())
+
+            print(f"[MASTER] pid={pid}: left={left} right={right} M0={START_VALUES[pid]}")
 
         # Laufzeit begrenzen (aktuell 5 s)
         await asyncio.sleep(5)
 
         # Ergebnisse abfragen
-        msg = messages.Message(
-            type=messages.MessageType.GET_M.value,
-            value=""
-        )
+        get_msg = messages.Message(type=messages.MessageType.GET_M.value, value="")
+        payload = json.dumps(asdict(get_msg)).encode()
 
-        payload_clients = json.dumps(asdict(msg)).encode()
-
-        for pid in START_VALUES.keys():
-            await client.publish(buildTopic(pid), payload_clients)
-            print("sende message an client {pid}")
-
-
+        for pid in pids:
+            await client.publish(buildNodeTopic(pid), payload)
+            print(f"[MASTER] sende GET_M an pid={pid}")
 
         results: list[int] = []
         async for message in client.messages:
@@ -94,7 +104,7 @@ async def master():
                 print(f"[MASTER] Antwort erhalten: {m_val}")
 
             # Wenn wir von allen Peers eine Antwort haben → raus aus der Schleife
-            if len(results) >= len(START_VALUES):
+            if len(results) >= len(pids):
                 break
 
         print("\n[MASTER] Endergebnisse:")

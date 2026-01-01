@@ -5,7 +5,7 @@ import aiomqtt
 from aiomqtt import Client
 from dataclasses import dataclass, asdict
 
-from utils.buildTopic import buildTopic, MASTER_PID
+from utils.buildTopic import buildNodeTopic, MASTER_PID
 import messages
 
 
@@ -24,7 +24,7 @@ class Peer:
     async def start(self):
         async with Client(self.broker["ip"], self.broker["port"]) as client:
             self.client = client
-            await self.client.subscribe(buildTopic(self.pid))
+            await self.client.subscribe(buildNodeTopic(self.pid))
 
             receiver = asyncio.create_task(self.handle_msg())
             worker = asyncio.create_task(self.run())
@@ -47,9 +47,9 @@ class Peer:
     async def exec_msg(self, msg: messages.Message):
         match msg.type:
             case messages.MessageType.SET_NEIGHBOUR_LEFT.value:
-                self.neighbour_topics["left"] = buildTopic(int(msg.value))
+                self.neighbour_topics["left"] = buildNodeTopic(int(msg.value))
             case messages.MessageType.SET_NEIGHBOUR_RIGHT.value:
-                self.neighbour_topics["right"] = buildTopic(int(msg.value))
+                self.neighbour_topics["right"] = buildNodeTopic(int(msg.value))
             case messages.MessageType.SET_M.value:
                 self.M = int(msg.value)
                 self.m_ready.set()
@@ -59,7 +59,7 @@ class Peer:
                 msg = messages.Message(
                     type=messages.MessageType.GET_M.value, value=str(self.M))
                 payload = json.dumps(asdict(msg)).encode()
-                await self.client.publish(buildTopic(MASTER_PID), payload)
+                await self.client.publish(buildNodeTopic(MASTER_PID), payload)
             case _ :
                 print("komische messagi reingekommeni, ikannixi verarbeiten")
 

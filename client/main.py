@@ -6,7 +6,7 @@ import argparse
 
 from peer import Peer   # falls die Klasse in derselben Datei ist, diesen Import weglassen
 
-DEFAULT_BROKER_IP = "localhost"
+DEFAULT_BROKER_IP = "localhost" #"10.83.7.211"
 DEFAULT_BROKER_PORT = 1883
 
 
@@ -31,7 +31,7 @@ async def main_short():
 
     for pid in [1, 2, 3, 4, 5]:
         peer = Peer(
-            broker_ip="127.0.0.1",
+            broker_ip=DEFAULT_BROKER_IP,
             pid=pid,
             broker_port=1883,
         )

@@ -1,4 +1,5 @@
 MASTER_PID = 0
 
-def buildTopic(pid:int):     return f"ring/client{str(pid)}"
+def buildNodeTopic(pid:int):     return f"ring/node{str(pid)}"
+def buildClientTopic(cid:int):     return f"ring/client{str(cid)}"
 
